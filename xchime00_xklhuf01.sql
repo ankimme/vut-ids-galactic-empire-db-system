@@ -136,6 +136,7 @@ CREATE TABLE "jedi"
 
 INSERT INTO "planetary_system" ("id", "name") VALUES (1, 'Canis Major');
 INSERT INTO "planetary_system" ("id", "name") VALUES (2, 'Orion');
+INSERT INTO "planetary_system" ("id", "name") VALUES (3, 'Ursa Major');
 
 INSERT INTO "element" ("atomic_number", "name", "symbol", "density", "column", "row") VALUES (1, 'Hydrogen', 'H', 0.089, 1, 1);
 INSERT INTO "element" ("atomic_number", "name", "symbol", "density", "column", "row") VALUES (2, 'Helium', 'He', 0.179, 18, 1);
@@ -152,9 +153,12 @@ INSERT INTO "star_type" ("type") VALUES ('Red dwarf');
 INSERT INTO "star_type" ("type") VALUES ('Red supergiant');
 INSERT INTO "star_type" ("type") VALUES ('White dwarf');
 INSERT INTO "star_type" ("type") VALUES ('Sun');
+INSERT INTO "star_type" ("type") VALUES ('Artificial');
 
 INSERT INTO "star" ("id", "name", "planetary_system_id", "type") VALUES (1, 'Sirius', 1, 'White dwarf');
-INSERT INTO "star" ("id", "name", "planetary_system_id", "type") VALUES (2, 'Rigel', 2, 'Blue supergiant');
+INSERT INTO "star" ("id", "name", "planetary_system_id", "type") VALUES (2, 'Dubhe', 3, 'Red dwarf');
+INSERT INTO "star" ("id", "name", "planetary_system_id", "type") VALUES (4, 'Rigel', 2, 'Blue supergiant');
+INSERT INTO "star" ("id", "name", "planetary_system_id", "type") VALUES (5, 'Merak', 3, 'Artificial');
 INSERT INTO "star" ("id", "name", "planetary_system_id", "type") VALUES (3, 'Betelgeuse', 2, 'Red supergiant');
 
 INSERT INTO "fleet" ("id", "name", "orbits_planet") VALUES (1, 'San Diego', 2);
@@ -167,8 +171,11 @@ INSERT INTO "spaceship" ("id", "name", "year_of_manufacture", "crew_size", "flee
 INSERT INTO "spaceship" ("id", "name", "year_of_manufacture", "crew_size", "fleet_id", "type", "cargo_capacity", "starfighter_count", "settlers_capacity") VALUES (45, 'Aurelius', 2003, 720, 2, null, null, null, null);
 INSERT INTO "spaceship" ("id", "name", "year_of_manufacture", "crew_size", "fleet_id", "type", "cargo_capacity", "starfighter_count", "settlers_capacity") VALUES (6, 'Osiris', 2019, 20, 2, 'merchant', 500, null, null);
 
-INSERT INTO "jedi" ("imperial_identification_number", "name", "surname", "date_of_birth", "lightsaber_color", "commands_fleet", "on_board") VALUES ('12345-abcd-abcd-abcd', 'Anakin', 'Skywalker', (TO_DATE('1960/12/01 20:03:24', 'yyyy/mm/dd hh24:mi:ss')), '#34a1eb', 1, null);
-INSERT INTO "jedi" ("imperial_identification_number", "name", "surname", "date_of_birth", "lightsaber_color", "commands_fleet", "on_board") VALUES ('78912-abcd-abcd-abcd', 'Qui-Gon', 'Jinn', (TO_DATE('1954/05/12 15:15:44', 'yyyy/mm/dd hh24:mi:ss')), '#f54e42', 2, null);
+INSERT INTO "jedi" ("imperial_identification_number", "name", "surname", "date_of_birth", "lightsaber_color", "commands_fleet", "on_board", "midichlorian_count") VALUES ('12345-abcd-abcd-abcd', 'Anakin', 'Skywalker', (TO_DATE('1960/12/01 20:03:24', 'yyyy/mm/dd hh24:mi:ss')), '#34a1eb', 1, 2, 27700);
+INSERT INTO "jedi" ("imperial_identification_number", "name", "surname", "date_of_birth", "lightsaber_color", "commands_fleet", "on_board") VALUES ('78912-abcd-abcd-abcd', 'Qui-Gon', 'Jinn', (TO_DATE('1954/05/12 15:15:44', 'yyyy/mm/dd hh24:mi:ss')), '#f54e42', 2, 6);
+INSERT INTO "jedi" ("imperial_identification_number", "name", "surname", "date_of_birth", "lightsaber_color", "commands_fleet", "on_board") VALUES ('61056-zxcv-abcd-abcd', 'Mace', 'Windu', (TO_DATE('1987/03/31 15:15:44', 'yyyy/mm/dd hh24:mi:ss')), '#ed542c', null, 2);
+INSERT INTO "jedi" ("imperial_identification_number", "name", "surname", "date_of_birth", "lightsaber_color", "commands_fleet", "on_board", "midichlorian_count") VALUES ('80234-zxcv-afdd-abcd', 'Obiwan', 'Kenobi', (TO_DATE('1972/08/10 15:15:44', 'yyyy/mm/dd hh24:mi:ss')), '#ed54ec', null, 6, 13400);
+INSERT INTO "jedi" ("imperial_identification_number", "name", "surname", "date_of_birth", "lightsaber_color", "commands_fleet", "on_board", "midichlorian_count") VALUES ('40356-zxcv-abhg-ajcd', 'Master', 'Yoda', (TO_DATE('1900/01/18 15:15:44', 'yyyy/mm/dd hh24:mi:ss')), '#edaa2c', 3, null, 17700);
 
 -- bond table
 
@@ -178,7 +185,76 @@ INSERT INTO "star-element" ("star_id", "atomic_number") VALUES (1, 16);
 INSERT INTO "star-element" ("star_id", "atomic_number") VALUES (2, 1);
 INSERT INTO "star-element" ("star_id", "atomic_number") VALUES (2, 6);
 INSERT INTO "star-element" ("star_id", "atomic_number") VALUES (3, 1);
+INSERT INTO "star-element" ("star_id", "atomic_number") VALUES (4, 1);
+INSERT INTO "star-element" ("star_id", "atomic_number") VALUES (4, 16);
+INSERT INTO "star-element" ("star_id", "atomic_number") VALUES (5, 1);
+INSERT INTO "star-element" ("star_id", "atomic_number") VALUES (5, 2);
 
 INSERT INTO "orbits_around" ("planet_id", "star_id", "distance") VALUES (1, 2, 4562321);
 INSERT INTO "orbits_around" ("planet_id", "star_id", "distance") VALUES (2, 3, 5621);
 INSERT INTO "orbits_around" ("planet_id", "star_id") VALUES (3, 2);
+
+-- select queries
+
+-- selects spaceships with fleet commanders on board
+SELECT S."id" AS "spaceship_id", S."name" AS "spaceship_name", J."imperial_identification_number" AS "jedi_imperial_id", J."name" AS "jedi_name", J."surname" AS "jedi_surname"
+FROM "jedi" J, "spaceship" S
+WHERE J."on_board"=S."id"
+AND J."commands_fleet" IS NOT NULL;
+
+-- selects fleets which orbit a planet
+SELECT P."id" AS "planet_id", P."name" AS "planet_name", F."id" AS "fleet_id", F."name" AS "fleet_name"
+FROM "planet" P, "fleet" F
+WHERE P."id" = F."orbits_planet"
+ORDER BY "planet_name", "fleet_name";
+
+-- selects stars with at least one habitable planet in its system
+SELECT S."planetary_system_id" AS "planetary_system_id", S."id" AS "star_id", S."name" AS "star_name"
+FROM "star" S, "orbits_around" O, "planet" P
+WHERE S."id"=O."star_id" AND P."id" = O."planet_id"
+AND P."habitable"=1
+ORDER BY "planetary_system_id", "star_name";
+
+-- list stars in planetary system by their type
+SELECT P."name" AS "planetary_system_name", ST."type" AS "star_type", S."name" AS "star_name"
+FROM "planetary_system" P, "star" S, "star_type" ST
+WHERE P."id" = S."planetary_system_id" AND S."type" = ST."type"
+ORDER BY P."name", ST."type", S."name";
+
+-- count all jedis in a fleet
+SELECT F."name" AS "fleet_name", COUNT(J."imperial_identification_number") AS "jedi_count"
+FROM "fleet" F,"spaceship" S, "jedi" J
+WHERE F."id" = S."fleet_id" AND S."id" = J."on_board"
+GROUP BY F."name";
+
+-- average moon count of planets orbiting a star
+SELECT S."name" AS "star_name", AVG(P."moon_count") AS "average_moon_count"
+FROM "star" S, "orbits_around" O, "planet" P
+WHERE S."id"=O."star_id" AND P."id"=O."planet_id"
+GROUP BY S."name";
+
+-- select fleets with at least one spaceship with a crew smaller than 30
+SELECT F."name"
+FROM "fleet" F
+WHERE EXISTS 
+    (
+        SELECT *
+        FROM "spaceship" S
+        WHERE S."fleet_id"=F."id"
+        AND S."crew_size" < 30
+    );
+
+-- list all elements of which are Artificial stars made of
+SELECT "name" as "element_name"
+FROM "element"
+WHERE "atomic_number" IN
+    (
+        SELECT "atomic_number"
+        FROM "star-element"
+        WHERE "star_id" IN
+        (
+            SELECT "id"
+            FROM "star"
+            WHERE "type"='Artificial'
+        )
+    );
