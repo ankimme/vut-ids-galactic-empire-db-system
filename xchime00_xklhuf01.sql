@@ -20,6 +20,7 @@ DROP TABLE "element";
 DROP TABLE "planetary_system";
 DROP TABLE "star_type";
 
+DROP SEQUENCE "star_pk_num";
 
 -- main body
 
@@ -161,6 +162,7 @@ INSERT INTO "star" ("id", "name", "planetary_system_id", "type") VALUES (4, 'Rig
 INSERT INTO "star" ("id", "name", "planetary_system_id", "type") VALUES (5, 'Merak', 3, 'Artificial');
 INSERT INTO "star" ("id", "name", "planetary_system_id", "type") VALUES (3, 'Betelgeuse', 2, 'Red supergiant');
 
+
 INSERT INTO "fleet" ("id", "name", "orbits_planet") VALUES (1, 'San Diego', 2);
 INSERT INTO "fleet" ("id", "name", "orbits_planet") VALUES (2, 'Boeing', 2);
 INSERT INTO "fleet" ("id", "name", "orbits_planet") VALUES (3, 'Lokotos', NULL);
@@ -258,3 +260,73 @@ WHERE "atomic_number" IN
             WHERE "type"='Artificial'
         )
     );
+
+
+-- database triggers
+
+-- sequence for star primary key
+CREATE SEQUENCE "star_pk_num" START WITH 1 INCREMENT BY 1;
+
+-- ensures insertion of new star with uniquely assigned primary key (id) if primary key is not defined by the user
+CREATE OR REPLACE TRIGGER star_insertion
+    BEFORE INSERT ON "star"
+    FOR EACH ROW
+DECLARE 
+    nextval "star"."id"%TYPE;
+    rows_found NUMBER;
+BEGIN
+    IF :NEW."id" IS NULL THEN
+        nextval := "star_pk_num".NEXTVAL;
+        SELECT count(*) INTO rows_found FROM "star" WHERE "id" = nextval;
+
+        WHILE rows_found >= 1 LOOP
+            nextval := "star_pk_num".NEXTVAL;
+            SELECT count(*) INTO rows_found FROM "star" WHERE "id" = nextval;
+        END LOOP;
+
+        :NEW."id" := nextval;
+    END IF;
+END;
+/
+
+
+
+-- in this case some stars with IDs 1 to 5 already exist in the database, the trigger should automatically assign ID 6 to the new row
+INSERT INTO "star" ("name", "planetary_system_id", "type") VALUES ('Altair', 1, 'White dwarf');
+
+-- SELECT * from "fleet";
+-- SELECT * from "spaceship";
+-- SELECT * from "jedi";
+
+-- CREATE OR REPLACE TRIGGER spaceship_delete
+--     AFTER DELETE ON "spaceship"
+--     FOR EACH ROW
+-- DECLARE
+--     fleet_ships NUMBER;
+-- BEGIN
+--     SELECT count(*) INTO fleet_ships FROM "spaceship" WHERE "fleet_id" = :OLD."fleet_id";
+--     -- dbms_output.put_line('Hello');
+--     IF fleet_ships < 1 THEN
+--         raise_application_error(-20200, 'napocitalo nula');
+--     --     UPDATE "jedi" SET "commands_fleet" = NULL
+--     --     WHERE "commands_fleet" = :OLD."fleet_id";
+--         -- DELETE FROM "fleet" WHERE "id" = :OLD."fleet_id";
+--     ELSE
+--         raise_application_error(-20200, 'napocitalo jedna');
+--     END IF;
+
+-- END;
+-- /
+
+-- update crew size after reallocating jedi
+
+CREATE OR REPLACE TRIGGER jedi_on_board
+    AFTER UPDATE OF "on_board" ON "jedi" 
+    FOR EACH row
+BEGIN
+  UPDATE "spaceship" SET "crew_size" = "crew_size" - 1
+  WHERE "id" = :OLD."on_board";
+  UPDATE "spaceship" SET "crew_size" = "crew_size" + 1
+  WHERE "id" = :NEW."on_board";
+END;
+/
