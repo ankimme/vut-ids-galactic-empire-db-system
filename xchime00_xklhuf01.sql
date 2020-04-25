@@ -330,3 +330,51 @@ BEGIN
   WHERE "id" = :NEW."on_board";
 END;
 /
+
+-- procedures
+
+DECLARE
+    fleet_ships NUMBER;
+BEGIN
+    SELECT count(*) INTO fleet_ships FROM "spaceship";
+    dbms_output.put_line(fleet_ships);
+    DBMS_OUTPUT.PUT_LINE('Hello World');
+END;
+/
+
+CREATE OR REPLACE PROCEDURE count_habitable_planets_in_system ("ps_id" NUMBER)
+IS
+    counter NUMBER;
+    system_id_exists NUMBER;
+    system_name "planetary_system"."name"%TYPE;
+    CURSOR habitable_planet_count
+    IS
+        SELECT P."name" AS "planetary_system_name", S."name" AS "star_name"
+        FROM "planetary_system" P, "star" S
+        WHERE P."id" = S."planetary_system_id" AND P."id" = "ps_id";
+BEGIN
+    -- pokud neexistuje id tak chyba
+    
+    SELECT count(*) INTO system_id_exists FROM "planetary_system" P WHERE P."id" = "ps_id";
+
+    IF (system_id_exists = 0) THEN
+        RAISE_APPLICATION_ERROR(-20200, 'NONEXISTANT PLANETARY SYSTEM!');
+    END IF;
+
+    counter := 0;
+    FOR planetary_system_row
+    IN habitable_planet_count
+    LOOP
+        counter := counter + 1;
+    END LOOP;
+    DBMS_OUTPUT.put_line('System' || system_name || ' has ' || counter || ' stars.');
+END;
+/
+
+BEGIN
+    count_habitable_planets_in_system(2);
+END;
+/
+
+SELECT * FROM "planetary_system";
+SELECT * FROM "star";
