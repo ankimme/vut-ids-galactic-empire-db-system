@@ -22,6 +22,8 @@ DROP TABLE "star_type";
 
 DROP SEQUENCE "star_pk_num";
 
+DROP INDEX "fleet_spaceships";
+
 -- main body
 
 CREATE TABLE "planetary_system"
@@ -424,6 +426,29 @@ END;
 /
 
 BEGIN
-    jedis_in_fleet(3, 7000);
+    jedis_in_fleet(1, 7000);
 END;
 /
+
+-- explain plans
+
+-- show sum of crew sizes of spaceships in every fleet
+EXPLAIN PLAN FOR
+  SELECT F."name" AS "fleet_name", S."type" AS "spaceship_type", sum(S."crew_size") AS "fleet_crew_size" 
+  FROM "fleet" F, "spaceship" S
+  WHERE F."id" = S."fleet_id"
+  GROUP BY F."name", S."type"
+  ORDER BY F."name", S."type";
+SELECT plan_table_output FROM table (dbms_xplan.display());
+
+
+-- index using spaceship information for query acceleration
+CREATE INDEX "fleet_spaceships" ON "spaceship" ("fleet_id", "type", "crew_size");
+
+EXPLAIN PLAN FOR
+  SELECT F."name" AS "fleet_name", S."type" AS "spaceship_type", sum(S."crew_size") AS "fleet_crew_size" 
+  FROM "fleet" F, "spaceship" S
+  WHERE F."id" = S."fleet_id"
+  GROUP BY F."name", S."type"
+  ORDER BY F."name", S."type";
+SELECT plan_table_output FROM table (dbms_xplan.display());
