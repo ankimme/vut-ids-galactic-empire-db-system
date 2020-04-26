@@ -333,48 +333,97 @@ END;
 
 -- procedures
 
-DECLARE
-    fleet_ships NUMBER;
-BEGIN
-    SELECT count(*) INTO fleet_ships FROM "spaceship";
-    dbms_output.put_line(fleet_ships);
-    DBMS_OUTPUT.PUT_LINE('Hello World');
-END;
-/
+
+
+-- count number of habitable planets in a planetary system passed in by its id
 
 CREATE OR REPLACE PROCEDURE count_habitable_planets_in_system ("ps_id" NUMBER)
 IS
-    counter NUMBER;
-    system_id_exists NUMBER;
-    system_name "planetary_system"."name"%TYPE;
+    planet_counter NUMBER := 0;
+    planetary_system_id_exists NUMBER;
+    planetary_system_name "planetary_system"."name"%TYPE;
     CURSOR habitable_planet_count
     IS
-        SELECT P."name" AS "planetary_system_name", S."name" AS "star_name"
-        FROM "planetary_system" P, "star" S
-        WHERE P."id" = S."planetary_system_id" AND P."id" = "ps_id";
-BEGIN
-    -- pokud neexistuje id tak chyba
-    
-    SELECT count(*) INTO system_id_exists FROM "planetary_system" P WHERE P."id" = "ps_id";
-
-    IF (system_id_exists = 0) THEN
+        SELECT PS."name" AS "planetary_system_name"
+        FROM "planetary_system" PS, "star" S, "orbits_around" O, "planet" P
+        WHERE PS."id" = "ps_id" AND PS."id" = S."planetary_system_id" AND S."id" = O."star_id" AND O."planet_id" = P."id" AND P."habitable" = 1;
+BEGIN 
+    SELECT count(*) INTO planetary_system_id_exists FROM "planetary_system" PS WHERE PS."id" = "ps_id";
+ 
+    -- check ps_id argument
+    IF (planetary_system_id_exists = 0) THEN
         RAISE_APPLICATION_ERROR(-20200, 'NONEXISTANT PLANETARY SYSTEM!');
     END IF;
 
-    counter := 0;
     FOR planetary_system_row
     IN habitable_planet_count
     LOOP
-        counter := counter + 1;
+        planet_counter := planet_counter + 1;
     END LOOP;
-    DBMS_OUTPUT.put_line('System' || system_name || ' has ' || counter || ' stars.');
+    DBMS_OUTPUT.put_line('System' || planetary_system_name || ' has ' || planet_counter || ' habitable planets.');
 END;
 /
 
 BEGIN
-    count_habitable_planets_in_system(2);
+    count_habitable_planets_in_system(3);
 END;
 /
 
 SELECT * FROM "planetary_system";
 SELECT * FROM "star";
+SELECT * FROM "planet";
+SELECT * FROM "orbits_around";
+SELECT * FROM "fleet";
+SELECT * FROM "spaceship";
+SELECT * FROM "jedi";
+
+-- print jedis with midichlorian count greater than specified value who are roaming through space in spaceships of a certain fleet
+
+CREATE OR REPLACE PROCEDURE jedis_in_fleet ("f_id" NUMBER, "midi_count" NUMBER)
+IS
+    jedi_counter NUMBER := 0;
+    fleet_id_exists NUMBER;
+    CURSOR jedis
+    IS
+        SELECT J.*
+        FROM "fleet" F, "spaceship" S, "jedi" J
+        WHERE F."id" = S."fleet_id" AND S."id" = J."on_board" AND F."id" = "f_id" AND J."midichlorian_count" >= "midi_count";
+BEGIN
+
+    -- check f_id argument
+    SELECT count(*) INTO fleet_id_exists FROM "fleet" F WHERE F."id" = "f_id";
+    IF (fleet_id_exists = 0) THEN
+        RAISE_APPLICATION_ERROR(-20201, 'NONEXISTANT FLEET!');
+    END IF;
+
+    -- check midi_count argument
+    IF "midi_count" < 7000 THEN
+        RAISE_APPLICATION_ERROR(-20202, 'GIVEN MIDICHLORIAN COUNT IS TOO LOW FOR JEDI!');
+    END IF;
+
+    DBMS_OUTPUT.put_line('Jedis in fleet with midichlorian count greater than ' || "midi_count" || ':');
+
+    FOR jedi_row
+    IN jedis
+    LOOP
+        DBMS_OUTPUT.put_line(jedi_row."name" || ' ' || jedi_row."surname");
+        jedi_counter := jedi_counter + 1;
+    END LOOP;
+
+    -- a little bit artificial, but should demonstrate how to handle exceptions
+    IF jedi_counter = 0 THEN
+        RAISE NO_DATA_FOUND;
+    END IF;
+
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+         DBMS_OUTPUT.put_line('No jedis found.');
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.put_line('Unknown error.');
+END;
+/
+
+BEGIN
+    jedis_in_fleet(3, 7000);
+END;
+/
