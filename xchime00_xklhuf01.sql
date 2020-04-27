@@ -24,6 +24,8 @@ DROP SEQUENCE "star_pk_num";
 
 DROP INDEX "fleet_spaceships";
 
+DROP MATERIALIZED VIEW "fleets_orbiting_planet";
+
 -- main body
 
 CREATE TABLE "planetary_system"
@@ -264,12 +266,13 @@ WHERE "atomic_number" IN
     );
 
 
+
 -- database triggers
 
 -- sequence for star primary key
 CREATE SEQUENCE "star_pk_num" START WITH 1 INCREMENT BY 1;
 
--- ensures insertion of new star with uniquely assigned primary key (id) if primary key is not defined by the user
+-- TRIGGER no. 1: ensures insertion of new star with uniquely assigned primary key (id) if primary key is not defined by the user
 CREATE OR REPLACE TRIGGER star_insertion
     BEFORE INSERT ON "star"
     FOR EACH ROW
@@ -291,36 +294,11 @@ BEGIN
 END;
 /
 
-
-
 -- in this case some stars with IDs 1 to 5 already exist in the database, the trigger should automatically assign ID 6 to the new row
 INSERT INTO "star" ("name", "planetary_system_id", "type") VALUES ('Altair', 1, 'White dwarf');
+--SELECT * FROM "star";
 
--- SELECT * from "fleet";
--- SELECT * from "spaceship";
--- SELECT * from "jedi";
-
--- CREATE OR REPLACE TRIGGER spaceship_delete
---     AFTER DELETE ON "spaceship"
---     FOR EACH ROW
--- DECLARE
---     fleet_ships NUMBER;
--- BEGIN
---     SELECT count(*) INTO fleet_ships FROM "spaceship" WHERE "fleet_id" = :OLD."fleet_id";
---     -- dbms_output.put_line('Hello');
---     IF fleet_ships < 1 THEN
---         raise_application_error(-20200, 'napocitalo nula');
---     --     UPDATE "jedi" SET "commands_fleet" = NULL
---     --     WHERE "commands_fleet" = :OLD."fleet_id";
---         -- DELETE FROM "fleet" WHERE "id" = :OLD."fleet_id";
---     ELSE
---         raise_application_error(-20200, 'napocitalo jedna');
---     END IF;
-
--- END;
--- /
-
--- update crew size after reallocating jedi
+-- TRIGGER no. 2: update crew size after reallocating jedi
 
 CREATE OR REPLACE TRIGGER jedi_on_board
     AFTER UPDATE OF "on_board" ON "jedi" 
@@ -333,11 +311,15 @@ BEGIN
 END;
 /
 
+-- reallocate Anakin Skywalker from spaceship ID 2 to spaceship ID 45
+UPDATE "jedi" SET "on_board" = 45 WHERE "imperial_identification_number" = '12345-abcd-abcd-abcd';
+-- SELECT * FROM "jedi";
+-- SELECT * FROM "spaceship";
+
+
 -- procedures
 
-
-
--- count number of habitable planets in a planetary system passed in by its id
+-- PROCEDURE no. 1: count number of habitable planets in a planetary system passed in by its id
 
 CREATE OR REPLACE PROCEDURE count_habitable_planets_in_system ("ps_id" NUMBER)
 IS
@@ -371,18 +353,12 @@ BEGIN
 END;
 /
 
-SELECT * FROM "planetary_system";
-SELECT * FROM "star";
-SELECT * FROM "planet";
-SELECT * FROM "orbits_around";
-SELECT * FROM "fleet";
-SELECT * FROM "spaceship";
-SELECT * FROM "jedi";
-
--- print jedis with midichlorian count greater than specified value who are roaming through space in spaceships of a certain fleet
+-- PROCEDURE no. 2: print jedis with midichlorian count greater than specified value who are roaming through space in spaceships of a certain fleet
 
 CREATE OR REPLACE PROCEDURE jedis_in_fleet ("f_id" NUMBER, "midi_count" NUMBER)
 IS
+    NO_JEDI_FOUND EXCEPTION;
+    PRAGMA EXCEPTION_INIT (NO_JEDI_FOUND, -20160);
     jedi_counter NUMBER := 0;
     fleet_id_exists NUMBER;
     CURSOR jedis
@@ -400,7 +376,7 @@ BEGIN
 
     -- check midi_count argument
     IF "midi_count" < 7000 THEN
-        RAISE_APPLICATION_ERROR(-20202, 'GIVEN MIDICHLORIAN COUNT IS TOO LOW FOR JEDI!');
+        RAISE_APPLICATION_ERROR(-20301, 'GIVEN MIDICHLORIAN COUNT IS TOO LOW FOR A JEDI!');
     END IF;
 
     DBMS_OUTPUT.put_line('Jedis in fleet with midichlorian count greater than ' || "midi_count" || ':');
@@ -412,16 +388,14 @@ BEGIN
         jedi_counter := jedi_counter + 1;
     END LOOP;
 
-    -- a little bit artificial, but should demonstrate how to handle exceptions
+    -- raising user defined exception
     IF jedi_counter = 0 THEN
-        RAISE NO_DATA_FOUND;
+        RAISE NO_JEDI_FOUND;
     END IF;
 
 EXCEPTION
-    WHEN NO_DATA_FOUND THEN
-         DBMS_OUTPUT.put_line('No jedis found.');
-    WHEN OTHERS THEN
-        DBMS_OUTPUT.put_line('Unknown error.');
+    WHEN NO_JEDI_FOUND THEN
+        DBMS_OUTPUT.put_line('No jedi found on board any fleet''s spaceship.');
 END;
 /
 
@@ -439,7 +413,7 @@ EXPLAIN PLAN FOR
   WHERE F."id" = S."fleet_id"
   GROUP BY F."name", S."type"
   ORDER BY F."name", S."type";
-SELECT plan_table_output FROM table (dbms_xplan.display());
+SELECT plan_table_output FROM TABLE (DBMS_XPLAN.DISPLAY());
 
 
 -- index using spaceship information for query acceleration
@@ -451,4 +425,56 @@ EXPLAIN PLAN FOR
   WHERE F."id" = S."fleet_id"
   GROUP BY F."name", S."type"
   ORDER BY F."name", S."type";
-SELECT plan_table_output FROM table (dbms_xplan.display());
+SELECT plan_table_output FROM TABLE (DBMS_XPLAN.DISPLAY());
+
+
+-- materialized view
+
+-- When using materialized view, a local (read-only) copy of data
+-- is fetched from a remote server. Any changes made on server side
+-- will not affect the local data until the 'commit' command is called.
+
+-- count how many fleets are orbiting a planet
+CREATE MATERIALIZED VIEW "fleets_orbiting_planet"
+REFRESH ON COMMIT AS
+SELECT P."name" AS "planet_name", count(F."id") AS "fleet_count"
+FROM "fleet" F, "planet" P
+WHERE F."orbits_planet" = P."id"
+GROUP BY P."name";
+
+-- display materialized view result
+SELECT * from "fleets_orbiting_planet";
+
+-- change data on server
+UPDATE "planet" SET "name" = 'Nueva' WHERE "id" = 2;
+
+-- display unchanged materialized view result
+SELECT * from "fleets_orbiting_planet";
+
+-- update materialized view
+COMMIT;
+
+-- display updated materialized view result
+SELECT * from "fleets_orbiting_planet";
+
+
+-- permissions for other user
+
+-- tables permission
+GRANT ALL ON "planetary_system" TO xklhuf01;
+GRANT ALL ON "star_type" TO xklhuf01;
+GRANT ALL ON "star" TO xklhuf01;
+GRANT ALL ON "element" TO xklhuf01;
+GRANT ALL ON "star-element" TO xklhuf01;
+GRANT ALL ON "orbits_around" TO xklhuf01;
+GRANT ALL ON "planet" TO xklhuf01;
+GRANT ALL ON "fleet" TO xklhuf01;
+GRANT ALL ON "spaceship" TO xklhuf01;
+GRANT ALL ON "jedi" TO xklhuf01;
+
+-- procedures permission
+GRANT EXECUTE ON jedis_in_fleet TO xklhuf01;
+GRANT EXECUTE ON count_habitable_planets_in_system TO xklhuf01;
+
+-- materialized view permission
+GRANT ALL ON "fleets_orbiting_planet" TO xklhuf01;
